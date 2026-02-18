@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QueryStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SourceType {
+  GOOGLE
+  YELP
+  WEBSITE
+  DELIVERY
+  MANUAL
+  DEMO
+}
+
+model Workspace {
+  id         String   @id @default(cuid())
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  stores     Store[]
+  queryRuns  QueryRun[]
+  mappings   WorkspaceItemMapping[]
+}
+
+model Store {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  name           String
+  address        String
+  lat            Float
+  lng            Float
+  timezone       String
+  cuisineTags    String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  queryRuns      QueryRun[]
+  internalSales  InternalSalesObservation[]
+  elasticity     ElasticityMetric[]
+}
+
+model QueryRun {
+  id                 String      @id @default(cuid())
+  workspaceId        String
+  storeId            String
+  targetItem         String
+  targetCategory     String?
+  targetVariant      String?
+  targetItemSignature String
+  radiusKm           Float
+  filtersJson        Json
+  positioningIntent  String
+  storeCurrentPrice  Decimal?
+  collectorVersions  Json
+  status             QueryStatus @default(PENDING)
+  errorMessage       String?
+  createdAt          DateTime    @default(now())
+  completedAt        DateTime?
+  workspace          Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  store              Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  itemMatches        ItemMatch[]
+  priceEstimates     PriceEstimate[]
+  sentimentMetrics   SentimentMetric[]
+  landscapeMetrics   LandscapeMetric[]
+
+  @@index([storeId, createdAt])
+}
+
+model CompetitorRestaurant {
+  id             String   @id @default(cuid())
+  name           String
+  address        String
+  lat            Float
+  lng            Float
+  googlePlaceId  String?
+  yelpId         String?
+  websiteDomain  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  menuSnapshots  MenuSnapshot[]
+  items          CompetitorItem[]
+  reviews        ReviewObservation[]
+  sentimentMetrics SentimentMetric[]
+
+  @@unique([name, address])
+}
+
+model CompetitorItem {
+  id               String   @id @default(cuid())
+  restaurantId     String
+  normalizedName   String
+  category         String?
+  variant          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  restaurant       CompetitorRestaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  priceObservations PriceObservation[]
+  matches          ItemMatch[]
+  estimates        PriceEstimate[]
+
+  @@index([normalizedName])
+}
+
+model RawPayload {
+  id            String   @id @default(cuid())
+  sourceType    SourceType
+  capturedAt    DateTime
+  contentType   String
+  storageRef    String
+  hash          String
+  metadataJson  Json
+  createdAt     DateTime @default(now())
+  priceObservations PriceObservation[]
+  menuSnapshots MenuSnapshot[]
+  reviewObservations ReviewObservation[]
+}
+
+model PriceObservation {
+  id                    String   @id @default(cuid())
+  itemId                 String
+  sourceType             SourceType
+  sourceUrl              String
+  capturedAt             DateTime
+  observedPrice          Decimal
+  currency               String
+  isDeliveryPrice        Boolean  @default(false)
+  deliveryPlatformName   String?
+  rawPayloadRefId        String?
+  createdAt              DateTime @default(now())
+  item                   CompetitorItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  rawPayload             RawPayload? @relation(fields: [rawPayloadRefId], references: [id])
+
+  @@index([itemId, capturedAt])
+}
+
+model MenuSnapshot {
+  id             String   @id @default(cuid())
+  restaurantId   String
+  sourceType     SourceType
+  capturedAt     DateTime
+  rawMenuPayloadRefId String?
+  createdAt      DateTime @default(now())
+  restaurant     CompetitorRestaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rawPayload     RawPayload? @relation(fields: [rawMenuPayloadRefId], references: [id])
+}
+
+model ReviewObservation {
+  id             String   @id @default(cuid())
+  restaurantId   String
+  sourceType     SourceType
+  capturedAt     DateTime
+  rating         Float?
+  text           String
+  rawPayloadRefId String?
+  createdAt      DateTime @default(now())
+  restaurant     CompetitorRestaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rawPayload     RawPayload? @relation(fields: [rawPayloadRefId], references: [id])
+}
+
+model ItemMatch {
+  id                    String   @id @default(cuid())
+  queryRunId            String
+  competitorItemId      String
+  targetItemSignature   String
+  matchScore            Float
+  matchMethod           String
+  isUserConfirmed       Boolean?
+  createdAt             DateTime @default(now())
+  queryRun              QueryRun @relation(fields: [queryRunId], references: [id], onDelete: Cascade)
+  competitorItem        CompetitorItem @relation(fields: [competitorItemId], references: [id], onDelete: Cascade)
+
+  @@index([queryRunId, matchScore])
+}
+
+model PriceEstimate {
+  id                         String   @id @default(cuid())
+  queryRunId                 String
+  competitorItemId           String
+  estimatedInStorePrice      Decimal
+  confidence0to100           Int
+  confidenceFactorsJson      Json
+  deliveryMarkupEstimatePct  Float?
+  explanation                String
+  createdAt                  DateTime @default(now())
+  queryRun                   QueryRun @relation(fields: [queryRunId], references: [id], onDelete: Cascade)
+  competitorItem             CompetitorItem @relation(fields: [competitorItemId], references: [id], onDelete: Cascade)
+
+  @@index([queryRunId, confidence0to100])
+}
+
+model SentimentMetric {
+  id                   String   @id @default(cuid())
+  queryRunId           String
+  restaurantId         String
+  overallSentiment     Float
+  valueScore           Float
+  aspectCountsJson     Json
+  evidenceSnippetIds   String[]
+  createdAt            DateTime @default(now())
+  queryRun             QueryRun @relation(fields: [queryRunId], references: [id], onDelete: Cascade)
+  restaurant           CompetitorRestaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+model LandscapeMetric {
+  id                    String   @id @default(cuid())
+  queryRunId            String
+  targetItemSignature   String
+  distributionStatsJson Json
+  marketBandsJson       Json
+  valueMapPointsJson    Json
+  conclusionsJson       Json
+  createdAt             DateTime @default(now())
+  queryRun              QueryRun @relation(fields: [queryRunId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceItemMapping {
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  targetItemSignature String
+  competitorItemId    String
+  decision            String
+  createdAt           DateTime @default(now())
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, targetItemSignature])
+}
+
+model InternalSalesObservation {
+  id         String   @id @default(cuid())
+  storeId    String
+  itemId     String
+  date       DateTime
+  price      Decimal
+  quantity   Float
+  revenue    Decimal
+  cost       Decimal?
+  promoFlag  Boolean  @default(false)
+  source     String
+  createdAt  DateTime @default(now())
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, itemId, date])
+}
+
+model ElasticityMetric {
+  id                  String   @id @default(cuid())
+  storeId             String
+  itemId              String
+  period              String
+  elasticityEstimate  Float
+  confidence          Float
+  method              String
+  notes               String?
+  createdAt           DateTime @default(now())
+  store               Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, itemId, period])
+}
