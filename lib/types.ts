@@ -1,6 +1,11 @@
 export type QueryInput = {
   workspaceId: string;
-  storeId: string;
+  storeId?: string;
+  storeName?: string;
+  storeAddress?: string;
+  storeLat?: number;
+  storeLng?: number;
+  storeTimezone?: string;
   targetItem: string;
   targetCategory?: string;
   targetVariant?: string;

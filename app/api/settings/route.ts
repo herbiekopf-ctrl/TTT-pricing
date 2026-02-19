@@ -9,6 +9,7 @@ export async function GET() {
     toggles: {
       enableGoogle: process.env.ENABLE_GOOGLE ?? "false",
       enableYelp: process.env.ENABLE_YELP ?? "false",
+      enableDemo: "false",
       enableScraping: process.env.ENABLE_SCRAPING ?? "false",
       enableDelivery: process.env.ENABLE_DELIVERY ?? "false"
     }

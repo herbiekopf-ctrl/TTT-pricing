@@ -1,60 +1,52 @@
 # TTT Pricing MVP (V1)
 
-## Architecture overview (Phase-2 ready)
+A dashboard-first, live-data pricing intelligence platform for small restaurants.
 
-This MVP is a **pipeline-first** competitive intelligence app for restaurants.
+## What this app does
+- Captures your real store profile and target item.
+- Pulls live competitor data from Yelp (no demo/fake dataset).
+- Matches comparable items and estimates in-store prices.
+- Scores confidence and builds market bands.
+- Produces concise pricing advice with trade up/down guidance tailored to your restaurant inputs.
 
-- **App/UI layer**: Next.js App Router pages (`/dashboard`, `/query/new`, `/query/[id]`, `/mappings`, `/settings`).
-- **Service layer**: `lib/pipeline`, `lib/matching`, `lib/analytics`, `lib/collectors` hold reusable analytics and ingestion logic; UI is thin.
-- **Persistence layer**: PostgreSQL via Prisma with raw + normalized + derived artifacts persisted per query run.
-- **Async-ready execution**: BullMQ + Redis queue (`lib/queue.ts`) for background execution, while API route currently supports synchronous execution for local MVP simplicity.
+## Requirements
+- Yelp Fusion API key.
+- PostgreSQL for persistence (or in-memory fallback for local UI testing).
 
-### Why this supports Phase 2
-- **Time-series friendly tables** for `PriceObservation`, `ReviewObservation`, `QueryRun`, and placeholder internal data (`InternalSalesObservation`, `ElasticityMetric`).
-- **Raw payload retention** (`RawPayload`) allows re-parsing when extractors improve.
-- **Derived metric persistence** (`ItemMatch`, `PriceEstimate`, `SentimentMetric`, `LandscapeMetric`) avoids expensive recompute and enables longitudinal modeling with future sales data.
-- **Collector versioning** is stored on each run (`QueryRun.collectorVersions`) for reproducibility.
-
-## V1 Features implemented
-- Query form with item, radius, filters, positioning intent, and optional current price.
-- Demo collector pipeline with 10 seeded competitors.
-- Matching engine (normalize + candidate ranking).
-- Price confidence engine with source reliability, recency, variance, and delivery markup estimate.
-- Sentiment/value perception extraction and evidence snippets.
-- Distribution stats, market bands, trade up/down metrics, and conclusions panel.
-- Manual mapping persistence page.
-
-## Data model highlights
-See `prisma/schema.prisma` for all required entities:
-- Core: `Workspace`, `Store`, `QueryRun`
-- Competitive time-series: `CompetitorRestaurant`, `CompetitorItem`, `PriceObservation`, `MenuSnapshot`, `ReviewObservation`
-- Derived: `ItemMatch`, `PriceEstimate`, `SentimentMetric`, `LandscapeMetric`
-- Raw: `RawPayload`
-- Phase-2 placeholders: `InternalSalesObservation`, `ElasticityMetric`
-
-## Local run
-1. Install dependencies
+## Run locally
+1. Clone and enter project:
+   ```bash
+   git clone <your-repo-url>
+   cd TTT-pricing
+   ```
+2. Install:
    ```bash
    npm install
    ```
-2. Set env variables
+3. Create env file:
    ```bash
    cp .env.example .env
    ```
-3. Set a PostgreSQL URL in `.env` as `DATABASE_URL`.
-4. Run migrations / push schema
-   ```bash
-   npx prisma db push
+4. Configure `.env`:
+   ```dotenv
+   YELP_API_KEY="<your-real-key>"
+   ENABLE_YELP="true"
    ```
-5. Start dev server
+5. Start:
    ```bash
-   npm run dev
+   npm run dev -- -p 3000
    ```
-6. Open `http://localhost:3000/dashboard`.
+6. Open `http://127.0.0.1:3000/dashboard`
 
-## Testing
+## Optional DB setup
 ```bash
-npm test
+npm run db:push
+npm run db:seed
 ```
 
-Includes unit tests for normalization/matching, confidence, distributions/positioning/trade-up-down, and an integration-style mock collector pipeline test.
+## Scripts
+- `npm run dev`
+- `npm run test`
+- `npm run build`
+- `npm run db:push`
+- `npm run db:seed`

@@ -4,6 +4,13 @@ import { createFallbackPrisma } from "@/lib/fallbackDb";
 const globalForPrisma = globalThis as unknown as { prisma: any | undefined };
 
 function createPrismaClient() {
+  if (!process.env.DATABASE_URL) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("DATABASE_URL missing, using in-memory fallback DB.");
+    }
+    return createFallbackPrisma();
+  }
+
   try {
     return new PrismaClient({ log: ["error", "warn"] });
   } catch (error) {

@@ -1,4 +1,10 @@
 import type { Collector } from "./types";
-import { demoCollector } from "./demoCollector";
+import { yelpCollector } from "./yelpCollector";
 
-export const collectors: Collector[] = [demoCollector];
+const enabledCollectors: Collector[] = [];
+
+if (process.env.ENABLE_YELP === "true" && process.env.YELP_API_KEY) {
+  enabledCollectors.push(yelpCollector);
+}
+
+export const collectors: Collector[] = enabledCollectors;
